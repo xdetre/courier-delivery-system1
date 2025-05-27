@@ -1,0 +1,58 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body, html { height: 100%; font-family: sans-serif; }
+
+.container {
+  display: grid;
+  grid-template-columns: 200px 1fr 250px;
+  grid-template-rows: 1fr 200px;
+  grid-template-areas:
+    "couriers map menu"
+    "history history history";
+  height: 100vh;
+}
+
+.couriers {
+  color: #d5d5d5;
+  grid-area: couriers;
+  background: #333030;
+  border-right: 1px solid #d5d5d5;
+  padding: 10px;
+}
+
+.map {
+  grid-area: map;
+  background: #eaeaea;
+  height: 100%;
+}
+
+.menu {
+  color: #d5d5d5;
+  grid-area: menu;
+  background: #333030;
+  border-left: 1px solid #d5d5d5;
+  padding: 10px;
+}
+
+.history {
+  color: #d5d5d5;
+  grid-area: history;
+  background: #333030;
+  border-top: 1px solid #d5d5d5;
+  padding: 10px;
+}
+
+.courier-item {
+  padding: 8px;
+  margin-bottom: 6px;
+  border-radius: 5px;
+  color: #fff;
+}
+
+.emoji-icon{
+  font-size: 24px;
+  line-height: 24px;
+  text-align: center;
+}
+
+.active { background: #4caf50; }
+.inactive { background: #f44336; }

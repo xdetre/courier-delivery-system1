@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16
+    container_name: delivery_postgres
+    restart: always
+    environment:
+      POSTGRES_DB: delivery
+      POSTGRES_USER: courier_user
+      POSTGRES_PASSWORD: qwer52
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  graphhopper:
+    build:
+      context: ./graphhopper   # папка, где лежит Dockerfile и всё нужное для GraphHopper
+    container_name: delivery_graphhopper
+    ports:
+      - "8989:8989"
+    depends_on:
+      - db
+
+volumes:
+  postgres_data:

@@ -1,0 +1,42 @@
+docker exec -it delivery_postgres psql -U courier_user -d delivery # открыть докер
+\dt
+\d couriers
+SELECT * FROM couriers;
+
+
+
+docker start delivery_postgres запутить бд проекта
+
+sudo systemctl stop postgresql остановить бд
+
+docker-compose down
+docker-compose build
+docker-compose up -d для запуска всех контейнеров
+
+docker-compose down остановка контейнеров
+
+
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+
+
+
+
+//проложенный путь admin.js
+/*function getRoute() {
+    fetch('http://localhost:8989/route?point=42.98306,47.50472&point=42.96000,47.50000&profile=car&locale=ru&calc_points=true&points_encoded=false')
+        .then(response => response.json())
+        .then(data => {
+            let points = data.paths[0].points;  // уже GeoJSON
+
+            let route = L.geoJSON(points, {
+                style: {
+                    color: 'blue',
+                    weight: 5,
+                    opacity: 0.7
+                }
+            }).addTo(map);
+
+            map.fitBounds(route.getBounds());
+        })
+        .catch(error => console.error('Ошибка при запросе маршрута:', error));
+}*/

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Панель курьеров</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+</head>
+<body>
+  <div class="container">
+    <div class="couriers">
+      <h3>Курьеры <button id="refresh-btn">🔃</button> <br></br> </h3>
+      <div id="couriers-list"></div>
+    </div>
+
+    <div class="map" id="map">
+      <!-- Здесь будет карта, инициализируем её с помощью API -->
+    </div>
+
+    <div class="menu">
+      <h3>Меню / Фильтры</h3>
+      <p>Тут можно добавить фильтры, чат или настройки</p>
+    </div>
+
+    <div class="history">
+      <h3>История заказов</h3>
+      <p>Здесь будут завершённые заказы</p>
+    </div>
+  </div>
+
+  <script src="admin.js"></script>
+</body>
+</html>
