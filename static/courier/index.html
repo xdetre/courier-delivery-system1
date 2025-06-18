@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Курьерская панель</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#000000">
+
+  <link rel="icon" type="image/png" href="../icon.png">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="header">
+  <button class="menu-btn"><i class="fas fa-bars"></i></button>
+  <span>📦 Курьер</span>
+  <div style="width: 24px;"></div>
+</div>
+
+<div id="map"></div>
+
+<div class="overlay"></div>
+
+<div class="side-panel">
+
+  <!-- 📌 Курьер профайл с аватаркой и именем -->
+  <div id="courier-profile" style="display: flex; align-items: center; margin-bottom: 20px; cursor: pointer;">
+    <i class="fas fa-user-circle" style="font-size: 32px; margin-right: 10px;"></i>
+    <span id="courier-name">Загрузка...</span>
+  </div>
+
+  <h3>Меню</h3>
+  <ul>
+    <li><a href="#"><i class="fas fa-history"></i> История заказов</a></li>
+    <li><a href="#"><i class="fas fa-question-circle"></i> Помощь</a></li>
+    <li><a href="#" id="logout-btn"><i class="fas fa-sign-out-alt"></i> Выйти</a></li>
+  </ul>
+
+  <div class="status-container">
+  <label class="switch">
+    <input type="checkbox" id="status-toggle">
+    <span class="slider"></span>
+  </label>
+    <span id="status-label">offline</span>
+  </div>
+
+</div>
+
+
+<div class="order-panel">
+  <div class="order-panel-handle"></div>
+  <div class="order-card">
+    <h3>Текущий заказ</h3>
+    <p><strong>Адрес:</strong> ул. Примерная, 123, кв. 45</p>
+    <p><strong>Получатель:</strong> Иванов Иван</p>
+    <p><strong>Телефон:</strong> +7 (123) 456-78-90</p>
+    <p><strong>Комментарий:</strong> Код домофона 45К</p>
+    <button class="btn start">Начать маршрут</button>
+    <button class="btn complete">Доставлено</button>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/js/all.min.js"></script>
+<script src="courier.js"></script>
+</body>
+</html>

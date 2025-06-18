@@ -2,9 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from models import Courier
+from models import Courier, CourierAccount
 from database import AsyncSessionLocal
 from typing import Optional
+
+
+from routers.auth import verify_token, oauth2_scheme
 
 router = APIRouter()
 
@@ -20,6 +23,8 @@ class CourierUpdate(BaseModel):
     name: Optional[str] = None
     status: Optional[str] = None
 
+class StatusUpdate(BaseModel):
+    status: str  # "avail" или "unavail"
 
 # ===============================
 # 📌 Асинхронная сессия
@@ -33,6 +38,40 @@ async def get_session() -> AsyncSession:
 # ===============================
 # 📌 Эндпоинты для курьеров
 # ===============================
+
+@router.patch("/couriers/status")
+async def update_status(
+    status_data: StatusUpdate,
+    session: AsyncSession = Depends(get_session),
+    phone: str = Depends(verify_token)):
+
+    result = await session.execute(
+        select(Courier).join(CourierAccount, Courier.account_id == CourierAccount.id).where(
+            CourierAccount.phone == phone)
+    )
+    courier = result.scalar_one_or_none()
+    if not courier:
+        raise HTTPException(status_code=404, detail="Курьер не найден")
+
+    courier.status = status_data.status
+    await session.commit()
+    await session.refresh(courier)
+    return {"message": "Статус успешно обновлен", "new_status": courier.status}
+
+@router.get("/couriers/me")
+async def get_current_courier(
+    session: AsyncSession = Depends(get_session),
+    phone: str = Depends(verify_token)):
+
+    result = await session.execute(
+        select(Courier).join(CourierAccount, Courier.account_id == CourierAccount.id).where(
+            CourierAccount.phone == phone)
+    )
+    courier = result.scalar_one_or_none()
+    if not courier:
+        raise HTTPException(status_code=404, detail="Курьер не найден")
+    return {"id": courier.id, "name": courier.name}
+
 
 @router.get("/couriers")
 async def get_couriers(session: AsyncSession = Depends(get_session)):
@@ -80,6 +119,7 @@ async def update_courier(courier_id: int, updated_data: CouriersCreate, session:
     return {"id": courier.id, "name": courier.name, "status": courier.status}
 
 
+
 @router.patch("/couriers/{courier_id}")
 async def patch_courier(courier_id: int, updated_data: CourierUpdate, session: AsyncSession = Depends(get_session)):
     courier = await session.get(Courier, courier_id)
@@ -94,37 +134,13 @@ async def patch_courier(courier_id: int, updated_data: CourierUpdate, session: A
     return {"id": courier.id, "name": courier.name, "status": courier.status}
 
 
-# ===============================
-# 📌 Модели и эндпоинты для трекинга
-# ===============================
+from pydantic import BaseModel
 
-courier_positions = {}
-
-class PositionUpdate(BaseModel):
-    courier_id: int
-    latitude: float
-    longitude: float
+class StatusUpdate(BaseModel):
+    status: str  # "avail" или "unavail"
 
 
-@router.post("/tracking/update_position")
-async def update_position(data: PositionUpdate):
-    courier_positions[data.courier_id] = {
-        "lat": data.latitude,
-        "lon": data.longitude
-    }
-    return {"message": "Position updated"}
 
-
-@router.get("/tracking/position/{courier_id}")
-async def get_position(courier_id: int):
-    if courier_id not in courier_positions:
-        raise HTTPException(status_code=404, detail="Position not found")
-    return courier_positions[courier_id]
-
-
-@router.get("/tracking/all_positions")
-async def get_all_positions():
-    return courier_positions
 
 
 
@@ -133,3 +149,5 @@ async def get_all_positions():
 # PUT — заменить
 # PATCH — частично изменить
 # DELETE — удалить
+
+#fz9I{8tP+m:n6
