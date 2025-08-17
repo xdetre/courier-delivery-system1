@@ -1,5 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from database import AsyncSessionLocal
@@ -7,47 +6,58 @@ from models import Courier
 
 router = APIRouter(prefix="/tracking", tags=["tracking"])
 
-# 📦 Асинхронная сессия
+# Список всех подключений
+active_admins: list[WebSocket] = []
+active_couriers: dict[int, WebSocket] = {}  # courier_id -> WebSocket
+
 async def get_session() -> AsyncSession:
     async with AsyncSessionLocal() as session:
         yield session
 
-# 📍 Модель данных для позиции курьера
-class PositionUpdate(BaseModel):
-    courier_id: int
-    latitude: float
-    longitude: float
+active_couriers = {}  # словарь {courier_id: websocket}
 
-# 📍 Обновление позиции курьера в БД
-@router.post("/update_position")
-async def update_position(data: PositionUpdate, session: AsyncSession = Depends(get_session)):
-    courier = await session.get(Courier, data.courier_id)
-    if not courier:
-        raise HTTPException(status_code=404, detail="Courier not found")
+# 📍 WebSocket для курьеров (отправка координат)
+@router.websocket("/ws/courier/{courier_id}")
+async def courier_ws(websocket: WebSocket, courier_id: int):
+    await websocket.accept()
+    active_couriers[courier_id] = websocket
+    print(f"✅ Курьер {courier_id} подключился по WebSocket")
 
-    courier.latitude = data.latitude
-    courier.longitude = data.longitude
+    try:
+        while True:
+            data = await websocket.receive_json()
+            # например, позиции от курьера
+            lat = data.get("latitude")
+            lon = data.get("longitude")
+            print(f"📍 Курьер {courier_id}: {lat}, {lon}")
 
-    await session.commit()
-    await session.refresh(courier)
+            # здесь можно обновлять в БД
+            # и/или слать обновления админке через другой ws
+    except WebSocketDisconnect:
+        print(f"❌ Курьер {courier_id} отключился")
+        active_couriers.pop(courier_id, None)
 
-    return {"message": "Position updated"}
 
-# 📍 Получение позиции одного курьера
-@router.get("/position/{courier_id}")
-async def get_position(courier_id: int, session: AsyncSession = Depends(get_session)):
-    courier = await session.get(Courier, courier_id)
-    if not courier:
-        raise HTTPException(status_code=404, detail="Courier not found")
+# 📍 WebSocket для админов (получение всех позиций)
+@router.websocket("/ws/admin")
+async def admin_ws(websocket: WebSocket, session: AsyncSession = Depends(get_session)):
+    await websocket.accept()
+    active_admins.append(websocket)
+    print("✅ Админ подключился")
 
-    if courier.latitude is None or courier.longitude is None:
-        raise HTTPException(status_code=404, detail="Position not available")
+    try:
+        # При подключении сразу отправляем текущие позиции
+        await broadcast_positions(session)
 
-    return {"latitude": courier.latitude, "longitude": courier.longitude}
+        while True:
+            await websocket.receive_text()  # ждём, но админ ничего не шлёт
 
-# 📍 Получение всех позиций курьеров
-@router.get("/all_positions")
-async def get_all_positions(session: AsyncSession = Depends(get_session)):
+    except WebSocketDisconnect:
+        print("❌ Админ отключился")
+        active_admins.remove(websocket)
+
+# 📤 Отправка всем админам
+async def broadcast_positions(session: AsyncSession):
     result = await session.execute(select(Courier))
     couriers = result.scalars().all()
 
@@ -61,4 +71,5 @@ async def get_all_positions(session: AsyncSession = Depends(get_session)):
         for c in couriers if c.latitude is not None and c.longitude is not None
     ]
 
-    return positions
+    for admin_ws in active_admins:
+        await admin_ws.send_json(positions)

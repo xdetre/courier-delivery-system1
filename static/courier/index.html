@@ -18,7 +18,23 @@
 <div class="header">
   <button class="menu-btn"><i class="fas fa-bars"></i></button>
   <span>📦 Курьер</span>
-  <div style="width: 24px;"></div>
+
+  <!-- 👉 Переключатель справа -->
+  <div class="mode-toggle" style="margin-left: auto; display: flex; gap: 10px; align-items: center;">
+    <label style="font-size: 14px;">
+      <input type="radio" name="mode" value="auto" checked> Авто
+    </label>
+    <label style="font-size: 14px;">
+      <input type="radio" name="mode" value="manual"> Выбор
+    </label>
+  </div>
+</div>
+
+<!-- Блок заказов для ручного выбора -->
+<!-- 👉 Плавающая панель со списком заказов -->
+<div id="order-list-panel" class="order-list-panel">
+  <div class="order-list-handle"></div>
+  <div id="order-list-content"></div>
 </div>
 
 <div id="map"></div>
@@ -26,7 +42,6 @@
 <div class="overlay"></div>
 
 <div class="side-panel">
-
   <!-- 📌 Курьер профайл с аватаркой и именем -->
   <div id="courier-profile" style="display: flex; align-items: center; margin-bottom: 20px; cursor: pointer;">
     <i class="fas fa-user-circle" style="font-size: 32px; margin-right: 10px;"></i>
@@ -40,18 +55,17 @@
     <li><a href="#" id="logout-btn"><i class="fas fa-sign-out-alt"></i> Выйти</a></li>
   </ul>
 
-  <div class="status-container">
-  <label class="switch">
-    <input type="checkbox" id="status-toggle">
-    <span class="slider"></span>
-  </label>
-    <span id="status-label">offline</span>
-  </div>
+  <div id="status-button-container" style="margin-top: 20px;">
+  <button id="status-toggle-btn" class="status-btn">Статус: offline</button>
+</div>
+
+<!-- 👉 Контейнер для заказов -->
+<div id="orders-container"></div>
 
 </div>
 
-
-<div class="order-panel">
+<!-- 👉 Нижняя панель текущего заказа -->
+<div class="order-panel" style="display: none;">
   <div class="order-panel-handle"></div>
   <div class="order-card">
     <h3>Текущий заказ</h3>
@@ -63,6 +77,7 @@
     <button class="btn complete">Доставлено</button>
   </div>
 </div>
+
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/js/all.min.js"></script>

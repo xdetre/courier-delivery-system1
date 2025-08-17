@@ -3,6 +3,8 @@ let map;
 // Базовый API адрес для локального FastAPI
 const apiBase = "http://localhost:8000";
 
+let courierMarkers = {};
+
 // При загрузке страницы
 document.addEventListener("DOMContentLoaded", () => {
     initMap();
@@ -43,3 +45,32 @@ async function loadCouriers() {
         console.error("Ошибка загрузки курьеров:", error);
     }
 }
+
+
+// для трекинга курьера
+function loadAllCouriers() {
+    fetch(`${apiBase}/tracking/all_positions`)
+        .then(res => res.json())
+        .then(couriers => {
+            couriers.forEach(c => {
+                const icon = L.divIcon({
+                    html: "🚚",
+                    className: "emoji-icon",
+                    iconSize: [30, 30],
+                    iconAnchor: [15, 15]
+                });
+
+                if (courierMarkers[c.courier_id]) {
+                    courierMarkers[c.courier_id].setLatLng([c.latitude, c.longitude]);
+                } else {
+                    courierMarkers[c.courier_id] = L.marker([c.latitude, c.longitude], { icon })
+                        .bindPopup(`<b>${c.name}</b>`)
+                        .addTo(map);
+                }
+            });
+        })
+        .catch(err => console.error("Ошибка загрузки позиций:", err));
+}
+
+// обновление списка каждые 5 сек
+setInterval(loadAllCouriers, 5000);

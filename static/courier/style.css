@@ -98,7 +98,7 @@ body {
   background: rgba(51, 53, 58, 0.9);
   border-radius: 20px 20px 0 0;
   padding: 16px;
-  z-index: 10;
+  z-index: 9980; /* ниже, чем order-list-panel */
   transform: translateY(calc(100% - 60px));
   transition: transform 0.3s ease;
   max-height: 80vh;
@@ -360,4 +360,141 @@ input:checked + .slider {
 
 input:checked + .slider:before {
   transform: translateX(22px);
+}
+
+/*переключение заказов*/
+
+.controls {
+  margin: 20px;
+  font-size: 18px;
+}
+
+#orders-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 20px;
+}
+
+/*.order-card {*/
+/*  border: 1px solid #ccc;*/
+/*  padding: 10px;*/
+/*  border-radius: 6px;*/
+/*  background: #f9f9f9;*/
+/*}*/
+
+.order-card button {
+  margin-top: 8px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px;
+  background: #222;
+  color: #fff;
+}
+
+.mode-toggle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.mode-toggle label {
+  font-size: 14px;
+}
+
+
+/* order-list-panel (верхняя шторка доступных заказов) */
+.order-list-panel {
+  position: fixed;
+  bottom: 0;
+  width: 100%;
+  background: rgba(51, 53, 58, 0.95);
+  max-height: 70%;
+  overflow-y: auto;
+  border-top-left-radius: 20px;
+  border-top-right-radius: 20px;
+  display: none;
+  padding: 15px;
+  z-index: 9999; /* выше, чем order-panel */
+  transition: transform 0.3s ease;
+}
+
+.order-list-panel.active {
+  display: block;
+  transform: translateY(0);
+}
+
+.order-list-handle {
+  height: 30px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: grab;
+}
+.order-list-handle::after {
+  content: "";
+  display: block;
+  width: 60px;
+  height: 5px;
+  background: #888;
+  border-radius: 5px;
+}
+
+.order-card-item {
+  background: #3a3d42;
+  padding: 14px;
+  border-radius: 12px;
+  margin-bottom: 12px;
+  color: white;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+
+.order-card-item p {
+  margin: 6px 0;
+  font-size: 15px;
+}
+
+.order-card-item button {
+  width: 100%;
+  margin-top: 10px;
+  background: #4CAF50;
+  border: none;
+  padding: 12px;
+  font-size: 15px;
+  border-radius: 8px;
+  color: white;
+  cursor: pointer;
+}
+
+
+.order-item {
+  background: #444;
+  color: white;
+  margin-bottom: 10px;
+  padding: 10px;
+  border-radius: 10px;
+}
+
+
+.status-btn {
+  width: 100%;
+  padding: 12px;
+  font-size: 16px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  background-color: #888;
+  color: white;
+  transition: background-color 0.3s ease;
+}
+
+.status-btn.online {
+  background-color: #4CAF50;
+}
+
+.status-btn.offline {
+  background-color: #e53935;
 }

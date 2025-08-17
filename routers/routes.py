@@ -2,10 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from models import Courier, CourierAccount
+from models import Courier, CourierAccount, Order
 from database import AsyncSessionLocal
-from typing import Optional
-
+from typing import Optional, List
+from schemas.order import OrderRead
 
 from routers.auth import verify_token, oauth2_scheme
 
@@ -71,6 +71,7 @@ async def get_current_courier(
     if not courier:
         raise HTTPException(status_code=404, detail="Курьер не найден")
     return {"id": courier.id, "name": courier.name}
+
 
 
 @router.get("/couriers")
@@ -140,7 +141,14 @@ class StatusUpdate(BaseModel):
     status: str  # "avail" или "unavail"
 
 
-
+# 📌 Получить все заказы конкретного курьера
+@router.get("/couriers/{courier_id}/orders", response_model=List[OrderRead])
+async def get_orders_by_courier(courier_id: int, session: AsyncSession = Depends(get_session)):
+    result = await session.execute(
+        select(Order).where(Order.courier_id == courier_id)
+    )
+    orders = result.scalars().all()
+    return orders
 
 
 
