@@ -1,31 +1,15 @@
 let map;
 let sidePanelOpen = false;
 let orderPanelExpanded = false;
+let wsCourier;
 
 // для трекинга
 let myPositionMarker = null;
 let lastSentTime = 0;
-const apiBase = "http://localhost:8000"; // твой API URL
+const apiBase = "/api"
 
-// 📡 WebSocket для передачи позиции
-let courierId = localStorage.getItem("courier_id");
-let wsCourier = null;
-if (courierId) {
-    wsCourier = new WebSocket(`ws://localhost:8000/tracking/ws/courier/${courierId}`);
 
-    wsCourier.onopen = () => {
-        console.log("✅ Курьер подключён к WebSocket");
-        startTracking();
-    };
 
-    wsCourier.onclose = () => {
-        console.warn("⚠️ WebSocket закрыт, позиции не отправляются");
-    };
-
-    wsCourier.onerror = (err) => {
-        console.error("Ошибка WebSocket:", err);
-    };
-}
 
 
 // ========================== ОСНОВНОЙ КОД ========================== //
@@ -43,6 +27,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // После загрузки данных активируем кнопку
     setupStatusButton();
+
   }
 });
 
@@ -52,10 +37,6 @@ function initMap() {
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap'
   }).addTo(map);
-
-  L.marker([42.98306, 47.50472]).addTo(map)
-    .bindPopup("Ваше текущее положение")
-    .openPopup();
 }
 
 function setupUI() {
@@ -84,6 +65,52 @@ function setupUI() {
   document.getElementById('courier-profile').addEventListener('click', () => {
     alert("Открыть профиль курьера (пока заглушка)");
   });
+
+  // 👉 История заказов
+document.querySelector('.side-panel').addEventListener('click', async (e) => {
+  if (e.target.textContent.includes("История заказов")) {
+    await showOrderHistory();
+  }
+});
+
+// закрытие окна истории
+document.addEventListener('click', (e) => {
+  if (e.target.id === "close-history") {
+    document.getElementById("order-history").classList.add("hidden");
+  }
+});
+
+// загрузка и отображение завершённых заказов
+async function showOrderHistory() {
+  const courierId = localStorage.getItem("courier_id");
+  if (!courierId) return;
+
+  try {
+    const res = await fetch(`${apiBase}/couriers/${courierId}/orders`);
+    if (!res.ok) throw new Error("Ошибка загрузки заказов");
+
+    const orders = await res.json();
+    const completed = orders.filter(o => o.status === "completed");
+
+    const historyList = document.getElementById("history-list");
+    if (completed.length === 0) {
+      historyList.innerHTML = "<p>Нет завершённых заказов</p>";
+    } else {
+      historyList.innerHTML = completed.map(o => `
+        <div class="history-item">
+          <p><strong>Адрес:</strong> ${o.address}</p>
+          <p><strong>Получатель:</strong> ${o.recipient_name}</p>
+          <p><strong>Комментарий:</strong> ${o.comment || '—'}</p>
+          <p style="font-size:12px;color:gray;"><em>Статус:</em> ${o.status}</p>
+        </div>
+      `).join("");
+    }
+
+    document.getElementById("order-history").classList.remove("hidden");
+  } catch (err) {
+    console.error("Ошибка загрузки истории заказов:", err);
+  }
+}
 
   const orderPanel = document.querySelector('.order-panel');
   const orderPanelHandle = document.querySelector('.order-panel-handle');
@@ -119,24 +146,29 @@ function setupUI() {
   document.querySelector('.order-panel').addEventListener('click', async (e) => {
     if (e.target.classList.contains('complete')) {
       const orderId = localStorage.getItem("active_order_id");
-      if (!orderId) return;
+      const token = localStorage.getItem("token");
+      if (!orderId || !token) return;
 
       try {
-        const res = await fetch(`http://localhost:8000/orders/${orderId}/complete`, {
-          method: "POST"
+        const res = await fetch(`${apiBase}/orders/${orderId}/complete`, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
         });
 
         if (res.ok) {
-          alert("Заказ успешно доставлен!");
+          alert("✅ Заказ успешно доставлен!");
           document.querySelector('.order-panel').style.display = 'none';
           localStorage.removeItem("active_order_id");
         } else {
-          alert("Ошибка при завершении заказа");
+          alert("❌ Ошибка при завершении заказа");
         }
       } catch (err) {
         console.error("Ошибка при соединении с сервером", err);
       }
     }
+
   });
 }
 
@@ -151,7 +183,7 @@ function setupStatusButton() {
     console.log("Меняю статус на:", current);
 
     try {
-      const res = await fetch("http://localhost:8000/couriers/status", {
+      const res = await fetch(`${apiBase}/couriers/status`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -190,7 +222,7 @@ async function loadCourierName() {
   if (!token) return;
 
   try {
-    const res = await fetch("http://localhost:8000/couriers/me", {
+    const res = await fetch(`${apiBase}/couriers/me`, {
       headers: { "Authorization": `Bearer ${token}` }
     });
 
@@ -209,6 +241,9 @@ async function loadCourierName() {
         updateStatusDisplay(savedStatus);
       }
 
+      // 👉 Здесь запускаем WebSocket, когда id уже точно есть
+      initCourierWebSocket(data.id);
+
     } else {
       document.getElementById("courier-name").textContent = "Ошибка загрузки";
       updateStatusDisplay(localStorage.getItem('courier_status') || "unavail");
@@ -221,10 +256,31 @@ async function loadCourierName() {
   }
 }
 
+// 👉 Функция инициализации 📡 WebSocket для передачи позиции
+function initCourierWebSocket(courierId) {
+  wsCourier = new WebSocket(`${window.location.origin.replace(/^http/, "ws")}/tracking/ws/courier/${courierId}`);
+
+  wsCourier.onopen = () => {
+    console.log("✅ Курьер подключён к WebSocket");
+    startTracking(courierId); // запуск трекинга только после подключения
+  };
+
+  wsCourier.onclose = () => {
+    console.warn("⚠️ WebSocket закрыт, позиции не отправляются");
+  };
+
+  wsCourier.onerror = (err) => {
+    console.error("Ошибка WebSocket:", err);
+  };
+
+  // если надо будет слушать от сервера — добавь сюда wsCourier.onmessage
+}
+
 
 // ========================== ТРЕКИНГ ========================== //
 
-function startTracking() {
+
+function startTracking(courierId) {
     if (!navigator.geolocation) {
         alert("Geolocation не поддерживается вашим браузером");
         return;
@@ -276,18 +332,35 @@ function startTracking() {
     );
 }
 
-function updateCourierMarker(lat, lon) {
+function updateCourierMarker(lat, lon, accuracy = 15) {
+    // если уже есть маркер — двигаем его
     if (myPositionMarker) {
         myPositionMarker.setLatLng([lat, lon]);
+        if (myAccuracyCircle) {
+            myAccuracyCircle.setLatLng([lat, lon]);
+            myAccuracyCircle.setRadius(accuracy);
+        }
     } else {
-        const icon = L.divIcon({
-            html: "🚶‍♂️",
-            className: "emoji-icon",
-            iconSize: [30, 30],
-            iconAnchor: [15, 15]
+        // создаём кастомную иконку (заметную)
+        const blueDot = L.divIcon({
+            html: '<div style="width: 18px; height: 18px; background: #007BFF; border: 3px solid white; border-radius: 50%; box-shadow: 0 0 8px rgba(0,0,255,0.7);"></div>',
+            className: "courier-marker",
+            iconSize: [18, 18],
+            iconAnchor: [9, 9],
         });
-        myPositionMarker = L.marker([lat, lon], { icon: icon }).addTo(map);
+
+        myPositionMarker = L.marker([lat, lon], { icon: blueDot }).addTo(map);
+        myAccuracyCircle = L.circle([lat, lon], {
+            radius: accuracy,
+            color: "#007BFF",
+            fillColor: "#007BFF",
+            fillOpacity: 0.15,
+            weight: 1
+        }).addTo(map);
     }
+
+    // центрируем карту на новую позицию (но не слишком резко)
+    map.setView([lat, lon], map.getZoom());
 }
 
 
@@ -314,7 +387,7 @@ function hideOrderListPanel() {
 // 👉 Загрузка доступных заказов
 async function loadAvailableOrders() {
   try {
-    const res = await fetch("http://localhost:8000/orders/available");
+    const res = await fetch(`${apiBase}/orders/available`);
     if (res.ok) {
       const orders = await res.json();
       const content = document.getElementById('order-list-content');
@@ -355,20 +428,27 @@ async function loadAvailableOrders() {
 // 👉 Назначение вручную
 async function assignOrderManually(orderId) {
   try {
-    const resCourier = await fetch("http://localhost:8000/couriers/me", {
-      headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
+    const token = localStorage.getItem("token");
+
+    const resCourier = await fetch(`${apiBase}/couriers/me`, {
+      headers: { "Authorization": `Bearer ${token}` }
     });
     const courier = await resCourier.json();
 
-    const res = await fetch(`http://localhost:8000/orders/${orderId}/assign/${courier.id}`, {
-      method: "POST"
+    const res = await fetch(`${apiBase}/orders/${orderId}/assign/${courier.id}`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`
+      }
     });
 
     if (res.ok) {
       hideOrderListPanel();
       loadActiveOrder();
     } else {
-      alert("Ошибка при назначении заказа");
+      const error = await res.text();
+      alert("Ошибка при назначении заказа: " + error);
+      console.error("Назначение заказа не удалось:", error);
     }
   } catch (err) {
     console.error("Ошибка назначения", err);
@@ -382,7 +462,7 @@ async function checkAssignedOrder() {
   const courierId = localStorage.getItem("courier_id");
   if (!courierId) return;
 
-  const res = await fetch(`http://localhost:8000/couriers/${courierId}/orders`);
+  const res = await fetch(`${apiBase}/couriers/${courierId}/orders`);
   if (res.ok) {
     const orders = await res.json();
     const activeOrder = orders.find(o => o.status === "assigned");
@@ -397,7 +477,7 @@ async function checkNearestOrder() {
   const courierId = localStorage.getItem("courier_id");
   if (!courierId) return;
 
-  const res = await fetch(`http://localhost:8000/orders/nearest/${courierId}`);
+  const res = await fetch(`${apiBase}/orders/nearest/${courierId}`);
   if (res.ok) {
     const order = await res.json();
     if (order.id) {
@@ -426,7 +506,7 @@ async function loadActiveOrder() {
   const courierId = localStorage.getItem("courier_id");
   if (!courierId) return;
 
-  const res = await fetch(`http://localhost:8000/couriers/${courierId}/orders`);
+  const res = await fetch(`${apiBase}/couriers/${courierId}/orders`);
   if (res.ok) {
     const orders = await res.json();
     const activeOrder = orders.find(o => o.status === "assigned");

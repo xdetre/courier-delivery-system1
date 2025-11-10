@@ -61,3 +61,25 @@ sudo systemctl start postgresql
 
 
 python3 -m http.server 8001
+
+
+
+6q4oR<UCGR?5q2!
+///////////////////////////////////////////////////
+
+А потом, когда будет свой домен:
+allow_origins=["https://твойдомен.ru"]
+
+function updateCourierMarker(lat, lon) {
+    if (myPositionMarker) {
+        myPositionMarker.setLatLng([lat, lon]);
+    } else {
+        const blueDot = L.divIcon({
+            html: "️🔵",
+            iconSize: [0, 0],
+            iconAnchor: [30, 30]
+        });
+        myPositionMarker = L.marker([lat, lon], { icon: blueDot }).addTo(map);
+    }
+    map.setView([lat, lon], map.getZoom());
+}

@@ -8,7 +8,7 @@
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#000000">
 
-  <link rel="icon" type="image/png" href="../icon.png">
+  <link rel="icon" type="image/png" href="/icon.png">
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
   <link rel="stylesheet" href="style.css">
@@ -78,9 +78,17 @@
   </div>
 </div>
 
+<!-- 📜 Модальное окно истории заказов -->
+<div id="order-history" class="order-history hidden">
+  <div class="history-content">
+    <h3>История заказов</h3>
+    <div id="history-list"></div>
+    <button id="close-history" class="btn">Закрыть</button>
+  </div>
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/js/all.min.js"></script>
 <script src="courier.js"></script>
+</div>
 </body>
 </html>

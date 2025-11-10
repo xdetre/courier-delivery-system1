@@ -1,7 +1,7 @@
 let map;
 
 // Базовый API адрес для локального FastAPI
-const apiBase = "http://localhost:8000";
+const apiBase = "/api";
 
 let courierMarkers = {};
 
@@ -9,6 +9,7 @@ let courierMarkers = {};
 document.addEventListener("DOMContentLoaded", () => {
     initMap();
     loadCouriers();
+    setInterval(loadAllCouriers, 5000); // обновляем каждые 5 сек
 
     // Кнопка обновления списка курьеров
     const refreshBtn = document.getElementById("refresh-btn");
@@ -17,7 +18,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 });
 
-// Инициализация карты
+// === Инициализация карты ===
 function initMap() {
     map = L.map('map').setView([42.98306, 47.50472], 13);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -25,7 +26,7 @@ function initMap() {
     }).addTo(map);
 }
 
-// Загрузка списка курьеров
+// === Загрузка списка курьеров ===
 async function loadCouriers() {
     try {
         const response = await fetch(`${apiBase}/couriers`);
@@ -46,31 +47,53 @@ async function loadCouriers() {
     }
 }
 
-
-// для трекинга курьера
+// === Трекинг всех курьеров ===
 function loadAllCouriers() {
     fetch(`${apiBase}/tracking/all_positions`)
         .then(res => res.json())
         .then(couriers => {
-            couriers.forEach(c => {
+            const onlineCouriers = couriers.filter(c => c.latitude && c.longitude);
+
+            // Удаляем маркеры тех, кто оффлайн
+            for (let id in courierMarkers) {
+                if (!onlineCouriers.find(c => c.courier_id == id)) {
+                    map.removeLayer(courierMarkers[id].marker);
+                    map.removeLayer(courierMarkers[id].label);
+                    delete courierMarkers[id];
+                }
+            }
+
+            // Добавляем или обновляем активных
+            onlineCouriers.forEach(c => {
                 const icon = L.divIcon({
-                    html: "🚚",
+                    html: "🔵", // маркер курьера
                     className: "emoji-icon",
-                    iconSize: [30, 30],
-                    iconAnchor: [15, 15]
+                    iconSize: [24, 24],
+                    iconAnchor: [12, 12]
                 });
 
                 if (courierMarkers[c.courier_id]) {
-                    courierMarkers[c.courier_id].setLatLng([c.latitude, c.longitude]);
+                    // обновляем позицию
+                    courierMarkers[c.courier_id].marker.setLatLng([c.latitude, c.longitude]);
+                    courierMarkers[c.courier_id].label.setLatLng([c.latitude + 0.00025, c.longitude]);
                 } else {
-                    courierMarkers[c.courier_id] = L.marker([c.latitude, c.longitude], { icon })
-                        .bindPopup(`<b>${c.name}</b>`)
-                        .addTo(map);
+                    // создаем маркер
+                    const marker = L.marker([c.latitude, c.longitude], { icon }).addTo(map);
+
+                    // создаем подпись под курьером
+                    const label = L.marker([c.latitude + 0.00025, c.longitude], {
+                        icon: L.divIcon({
+                            className: "courier-label",
+                            html: `<div class="courier-label-text">${c.name}</div>`,
+                            iconSize: [100, 20],
+                            iconAnchor: [50, 20]
+                        }),
+                        interactive: false
+                    }).addTo(map);
+
+                    courierMarkers[c.courier_id] = { marker, label };
                 }
             });
         })
         .catch(err => console.error("Ошибка загрузки позиций:", err));
 }
-
-// обновление списка каждые 5 сек
-setInterval(loadAllCouriers, 5000);

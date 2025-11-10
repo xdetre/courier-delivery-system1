@@ -1,6 +1,6 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, update
 from database import AsyncSessionLocal
 from models import Courier
 
@@ -18,7 +18,7 @@ active_couriers = {}  # словарь {courier_id: websocket}
 
 # 📍 WebSocket для курьеров (отправка координат)
 @router.websocket("/ws/courier/{courier_id}")
-async def courier_ws(websocket: WebSocket, courier_id: int):
+async def courier_ws(websocket: WebSocket, courier_id: int, session: AsyncSession = Depends(get_session)):
     await websocket.accept()
     active_couriers[courier_id] = websocket
     print(f"✅ Курьер {courier_id} подключился по WebSocket")
@@ -31,8 +31,15 @@ async def courier_ws(websocket: WebSocket, courier_id: int):
             lon = data.get("longitude")
             print(f"📍 Курьер {courier_id}: {lat}, {lon}")
 
-            # здесь можно обновлять в БД
-            # и/или слать обновления админке через другой ws
+            # ✅ сохраняем координаты в БД
+            await session.execute(
+                update(Courier)
+                .where(Courier.id == courier_id)
+                .values(latitude=lat, longitude=lon)
+            )
+            await session.commit()
+
+
     except WebSocketDisconnect:
         print(f"❌ Курьер {courier_id} отключился")
         active_couriers.pop(courier_id, None)
@@ -66,10 +73,28 @@ async def broadcast_positions(session: AsyncSession):
             "courier_id": c.id,
             "name": c.name,
             "latitude": c.latitude,
-            "longitude": c.longitude
+            "longitude": c.longitude,
+            "status": c.status
         }
         for c in couriers if c.latitude is not None and c.longitude is not None
     ]
 
     for admin_ws in active_admins:
         await admin_ws.send_json(positions)
+
+
+@router.get("/all_positions")
+async def get_all_positions(session: AsyncSession = Depends(get_session)):
+    result = await session.execute(select(Courier))
+    couriers = result.scalars().all()
+
+    return [
+        {
+            "courier_id": c.id,
+            "name": c.name,
+            "latitude": c.latitude,
+            "longitude": c.longitude,
+            "status": c.status
+        }
+        for c in couriers if c.latitude is not None and c.longitude is not None
+    ]

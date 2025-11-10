@@ -63,8 +63,8 @@ actionBtn.addEventListener("click", async () => {
   }
 
   const url = mode === "login"
-    ? "http://localhost:8000/auth/login"
-    : "http://localhost:8000/auth/register";
+    ? "/api/auth/login"
+    : "/api/auth/register";
 
   const payload = mode === "login"
     ? { phone: phone, password: password }
