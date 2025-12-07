@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from passlib.context import CryptContext
@@ -29,13 +29,37 @@ async def get_session() -> AsyncSession:
 
 # 📌 Pydantic модели
 class UserCreate(BaseModel):
-    phone: str
-    password: str
-    name: str
+    phone: str = Field(..., min_length=6, max_length=20, description="Номер телефона")
+    password: str = Field(..., min_length=6, max_length=72, description="Пароль (минимум 6 символов, максимум 72)")
+    name: str = Field(..., min_length=2, max_length=100, description="Имя курьера")
+    
+    @field_validator('password')
+    @classmethod
+    def validate_password(cls, v):
+        if not v or not isinstance(v, str):
+            raise ValueError('Пароль обязателен')
+        # Bcrypt ограничение: максимум 72 байта
+        if len(v.encode('utf-8')) > 72:
+            raise ValueError('Пароль не может быть длиннее 72 байт')
+        return v
+
+    @field_validator('phone')
+    @classmethod
+    def validate_phone(cls, v):
+        if not v or not isinstance(v, str):
+            raise ValueError('Телефон обязателен')
+        v = v.strip()
+        if not v.startswith('+'):
+            raise ValueError('Телефон должен начинаться с +')
+        if len(v) < 7 or len(v) > 20:
+            raise ValueError('Телефон должен содержать от 6 до 19 цифр после +')
+        if not v[1:].isdigit():
+            raise ValueError('Телефон должен содержать только цифры после +')
+        return v
 
 class UserLogin(BaseModel):
-    phone: str
-    password: str
+    phone: str = Field(..., min_length=6, max_length=20)
+    password: str = Field(..., min_length=6, max_length=72)
 
 class TokenResponse(BaseModel):
     access_token: str
@@ -45,35 +69,45 @@ class TokenResponse(BaseModel):
 
 @router.post("/register")
 async def register(data: UserCreate, session: AsyncSession = Depends(get_session)):
-    # Проверяем, нет ли уже такого телефона
-    result = await session.execute(
-        select(CourierAccount).where(CourierAccount.phone == data.phone)
-    )
-    user = result.scalar_one_or_none()
-    if user:
-        raise HTTPException(status_code=400, detail="Пользователь уже зарегистрирован")
+    try:
+        # Проверяем, нет ли уже такого телефона
+        result = await session.execute(
+            select(CourierAccount).where(CourierAccount.phone == data.phone)
+        )
+        user = result.scalar_one_or_none()
+        if user:
+            raise HTTPException(status_code=400, detail="Пользователь уже зарегистрирован")
 
-    # Хешируем пароль и создаём аккаунт
-    hashed_password = pwd_context.hash(data.password)
-    new_user = CourierAccount(phone=data.phone, password_hash=hashed_password)
-    session.add(new_user)
-    await session.commit()
-    await session.refresh(new_user)
+        # Хешируем пароль и создаём аккаунт
+        # Обрезаем пароль до 72 байт для совместимости с bcrypt
+        password_bytes = data.password.encode('utf-8')[:72]
+        password_str = password_bytes.decode('utf-8', errors='ignore')
+        hashed_password = pwd_context.hash(password_str)
+        new_user = CourierAccount(phone=data.phone, password_hash=hashed_password)
+        session.add(new_user)
+        await session.flush()  # Получаем ID без коммита
+        await session.refresh(new_user)
 
-    # Создаём курьера с именем и привязываем к account_id
-    new_courier = Courier(
-        name=data.name,
-        status="offline",
-        account_id=new_user.id
-    )
-    session.add(new_courier)
-    await session.commit()
-    await session.refresh(new_courier)
+        # Создаём курьера с именем и привязываем к account_id
+        new_courier = Courier(
+            name=data.name,
+            status="offline",
+            account_id=new_user.id
+        )
+        session.add(new_courier)
+        await session.commit()
+        await session.refresh(new_courier)
 
-    return {
-        "message": "Регистрация успешна",
-        "courier_id": new_courier.id
-    }
+        return {
+            "message": "Регистрация успешна",
+            "courier_id": new_courier.id
+        }
+    except HTTPException:
+        await session.rollback()
+        raise
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=500, detail=f"Ошибка при регистрации: {str(e)}")
 
 
 
@@ -84,7 +118,14 @@ async def login(data: UserLogin, session: AsyncSession = Depends(get_session)):
         select(CourierAccount).where(CourierAccount.phone == data.phone)
     )
     user = result.scalar_one_or_none()
-    if not user or not pwd_context.verify(data.password, user.password_hash):
+    if not user:
+        raise HTTPException(status_code=401, detail="Неверный номер или пароль")
+    
+    # Обрезаем пароль до 72 байт для совместимости с bcrypt
+    password_bytes = data.password.encode('utf-8')[:72]
+    password_str = password_bytes.decode('utf-8', errors='ignore')
+    
+    if not pwd_context.verify(password_str, user.password_hash):
         raise HTTPException(status_code=401, detail="Неверный номер или пароль")
 
     access_token = create_access_token(data={"sub": user.phone})

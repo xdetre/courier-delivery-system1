@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from models import Courier, CourierAccount, Order
@@ -16,15 +16,36 @@ router = APIRouter()
 # ===============================
 
 class CouriersCreate(BaseModel):
-    name: str
-    status: str
+    name: str = Field(..., min_length=2, max_length=100)
+    status: str = Field(..., description="Статус: avail, unavail или offline")
+    
+    @field_validator('status')
+    @classmethod
+    def validate_status(cls, v):
+        if v not in ['avail', 'unavail', 'offline']:
+            raise ValueError('Статус должен быть: avail, unavail или offline')
+        return v
 
 class CourierUpdate(BaseModel):
-    name: Optional[str] = None
+    name: Optional[str] = Field(None, min_length=2, max_length=100)
     status: Optional[str] = None
+    
+    @field_validator('status')
+    @classmethod
+    def validate_status(cls, v):
+        if v is not None and v not in ['avail', 'unavail', 'offline']:
+            raise ValueError('Статус должен быть: avail, unavail или offline')
+        return v
 
 class StatusUpdate(BaseModel):
-    status: str  # "avail" или "unavail"
+    status: str = Field(..., description="Статус: avail или unavail")
+    
+    @field_validator('status')
+    @classmethod
+    def validate_status(cls, v):
+        if v not in ['avail', 'unavail']:
+            raise ValueError('Статус должен быть: avail или unavail')
+        return v
 
 # ===============================
 # 📌 Асинхронная сессия
@@ -70,7 +91,7 @@ async def get_current_courier(
     courier = result.scalar_one_or_none()
     if not courier:
         raise HTTPException(status_code=404, detail="Курьер не найден")
-    return {"id": courier.id, "name": courier.name}
+    return {"id": courier.id, "name": courier.name, "status": courier.status}
 
 
 
@@ -135,10 +156,6 @@ async def patch_courier(courier_id: int, updated_data: CourierUpdate, session: A
     return {"id": courier.id, "name": courier.name, "status": courier.status}
 
 
-from pydantic import BaseModel
-
-class StatusUpdate(BaseModel):
-    status: str  # "avail" или "unavail"
 
 
 # 📌 Получить все заказы конкретного курьера

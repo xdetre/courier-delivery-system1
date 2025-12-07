@@ -10,15 +10,14 @@ router = APIRouter(prefix="/tracking", tags=["tracking"])
 active_admins: list[WebSocket] = []
 active_couriers: dict[int, WebSocket] = {}  # courier_id -> WebSocket
 
+# Dependency для HTTP эндпоинтов
 async def get_session() -> AsyncSession:
     async with AsyncSessionLocal() as session:
         yield session
 
-active_couriers = {}  # словарь {courier_id: websocket}
-
 # 📍 WebSocket для курьеров (отправка координат)
 @router.websocket("/ws/courier/{courier_id}")
-async def courier_ws(websocket: WebSocket, courier_id: int, session: AsyncSession = Depends(get_session)):
+async def courier_ws(websocket: WebSocket, courier_id: int):
     await websocket.accept()
     active_couriers[courier_id] = websocket
     print(f"✅ Курьер {courier_id} подключился по WebSocket")
@@ -32,35 +31,42 @@ async def courier_ws(websocket: WebSocket, courier_id: int, session: AsyncSessio
             print(f"📍 Курьер {courier_id}: {lat}, {lon}")
 
             # ✅ сохраняем координаты в БД
-            await session.execute(
-                update(Courier)
-                .where(Courier.id == courier_id)
-                .values(latitude=lat, longitude=lon)
-            )
-            await session.commit()
-
+            async with AsyncSessionLocal() as session:
+                await session.execute(
+                    update(Courier)
+                    .where(Courier.id == courier_id)
+                    .values(latitude=lat, longitude=lon)
+                )
+                await session.commit()
 
     except WebSocketDisconnect:
         print(f"❌ Курьер {courier_id} отключился")
+        active_couriers.pop(courier_id, None)
+    except Exception as e:
+        print(f"❌ Ошибка в WebSocket курьера {courier_id}: {e}")
         active_couriers.pop(courier_id, None)
 
 
 # 📍 WebSocket для админов (получение всех позиций)
 @router.websocket("/ws/admin")
-async def admin_ws(websocket: WebSocket, session: AsyncSession = Depends(get_session)):
+async def admin_ws(websocket: WebSocket):
     await websocket.accept()
     active_admins.append(websocket)
     print("✅ Админ подключился")
 
     try:
         # При подключении сразу отправляем текущие позиции
-        await broadcast_positions(session)
+        async with AsyncSessionLocal() as session:
+            await broadcast_positions(session)
 
         while True:
             await websocket.receive_text()  # ждём, но админ ничего не шлёт
 
     except WebSocketDisconnect:
         print("❌ Админ отключился")
+        active_admins.remove(websocket)
+    except Exception as e:
+        print(f"❌ Ошибка в WebSocket админа: {e}")
         active_admins.remove(websocket)
 
 # 📤 Отправка всем админам
