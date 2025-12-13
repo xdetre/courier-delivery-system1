@@ -62,17 +62,9 @@ services:
     ports:
       - "8001:80"
     volumes:
-      # твой конфиг nginx
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-
-      # Используем собранную статику React:
-      - ./admin-frontend/build:/usr/share/nginx/html:ro
-
     depends_on:
       - backend
-      - admin-frontend
-    networks:
-      - delivery-network
 
 volumes:
   postgres_data:

@@ -48,10 +48,10 @@ app.include_router(tracking.router, prefix="/api")
 app.include_router(auth.router, prefix="/api")
 app.include_router(order.router, prefix="/api")
 
-# Роут для админки
-app.mount("/admin", StaticFiles(directory="static/admin", html=True), name="admin")
-# Роут для курьера (html=True автоматически обслуживает index.html)
-app.mount("/courier", StaticFiles(directory="static/courier", html=True), name="courier")
+# # Роут для админки
+# app.mount("/admin", StaticFiles(directory="static/admin", html=True), name="admin")
+# # Роут для курьера (html=True автоматически обслуживает index.html)
+# app.mount("/courier", StaticFiles(directory="static/courier", html=True), name="courier")
 
 
 @app.get("/")
