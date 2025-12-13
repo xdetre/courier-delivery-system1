@@ -1,0 +1,15 @@
+.menu {
+  color: #e4e4e7;
+  grid-area: menu;
+  background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.menu h3 {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
