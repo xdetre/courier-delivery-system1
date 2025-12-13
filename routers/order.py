@@ -164,3 +164,36 @@ async def delete_order(order_id: int, session: AsyncSession = Depends(get_sessio
     return {"message": f"Order {order_id} has been deleted"}
 
 
+# # Создать тестовый заказ с произвольными координатами
+# @router.post("/test/create", response_model=OrderRead)
+# async def create_test_order(session: AsyncSession = Depends(get_session)):
+#     """Создает тестовый заказ с произвольными координатами в районе Махачкалы"""
+#     import random
+#
+#     # Центр Махачкалы: 42.98306, 47.50472
+#     # Генерируем случайные координаты в радиусе ~2км
+#     base_lat = 42.98306
+#     base_lon = 47.50472
+#
+#     # Случайное смещение в пределах ~2км (примерно 0.018 градуса)
+#     lat_offset = random.uniform(-0.015, 0.015)
+#     lon_offset = random.uniform(-0.015, 0.015)
+#
+#     test_order = Order(
+#         address=f"ул. Тестовая, {random.randint(1, 200)}, кв. {random.randint(1, 50)}",
+#         latitude=base_lat + lat_offset,
+#         longitude=base_lon + lon_offset,
+#         recipient_name=f"Тестовый получатель {random.randint(1, 100)}",
+#         recipient_phone=f"+7999{random.randint(1000000, 9999999)}",
+#         comment=f"Тестовый заказ. Код домофона: {random.randint(10, 99)}К",
+#         price=round(random.uniform(100, 1000), 2),
+#         status="pending"
+#     )
+#
+#     session.add(test_order)
+#     await session.commit()
+#     await session.refresh(test_order)
+#
+#     return test_order
+
+
