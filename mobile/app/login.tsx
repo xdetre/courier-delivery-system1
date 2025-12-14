@@ -17,6 +17,7 @@ import { API_CONFIG } from '@/config';
 
 const API_BASE = API_CONFIG.BASE_URL;
 
+
 export default function LoginScreen() {
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [phone, setPhone] = useState('');
@@ -28,6 +29,7 @@ export default function LoginScreen() {
   useEffect(() => {
     checkAuth();
   }, []);
+
 
   const checkAuth = async () => {
     const token = await AsyncStorage.getItem('token');

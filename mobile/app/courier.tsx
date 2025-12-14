@@ -54,11 +54,12 @@ export default function CourierScreen() {
 
   useEffect(() => {
     checkAuth();
+    loadCourierInfo();
   }, []);
 
   useEffect(() => {
     if (courierId) {
-      loadCourierInfo();
+
       startTracking();
       checkAssignedOrder();
       const interval = setInterval(checkAssignedOrder, 5000);
@@ -732,4 +733,3 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
-
