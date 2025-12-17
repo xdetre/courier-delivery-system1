@@ -46,6 +46,8 @@ export default function CourierScreen() {
   const [availableOrders, setAvailableOrders] = useState<Order[]>([]);
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
   const [orderRoute, setOrderRoute] = useState<{ latitude: number; longitude: number }[]>([]);
+  const [historyModalVisible, setHistoryModalVisible] = useState(false);
+  const [orderHistory, setOrderHistory] = useState<Order[]>([]);
 
   const router = useRouter();
   const mapRef = useRef<MapView>(null);
@@ -225,7 +227,9 @@ export default function CourierScreen() {
 
       if (res.ok) {
         setOrderListPanelVisible(false);
-        checkAssignedOrder();
+        // Загружаем назначенный заказ и показываем панель
+        await checkAssignedOrder();
+        setOrderPanelExpanded(true);
         Alert.alert('Успех', 'Заказ назначен!');
       } else {
         Alert.alert('Ошибка', 'Ошибка при назначении заказа');
@@ -245,6 +249,7 @@ export default function CourierScreen() {
         const activeOrder = orders.find((o: Order) => o.status === 'assigned');
         if (activeOrder) {
           setCurrentOrder(activeOrder);
+          setOrderPanelExpanded(true); // Автоматически показываем панель заказа
           if (activeOrder.latitude && activeOrder.longitude && location) {
             setOrderRoute([
               {
@@ -260,6 +265,7 @@ export default function CourierScreen() {
         } else {
           setCurrentOrder(null);
           setOrderRoute([]);
+          setOrderPanelExpanded(false);
         }
       }
     } catch (err) {
@@ -276,6 +282,7 @@ export default function CourierScreen() {
         const order = await res.json();
         if (order.id) {
           setCurrentOrder(order);
+          setOrderPanelExpanded(true); // Автоматически показываем панель заказа
         }
       }
     } catch (err) {
@@ -311,6 +318,24 @@ export default function CourierScreen() {
     await AsyncStorage.removeItem('token');
     await AsyncStorage.removeItem('courier_id');
     router.replace('/login');
+  };
+
+  const loadOrderHistory = async () => {
+    if (!courierId) return;
+
+    try {
+      const res = await fetch(`${API_BASE}/couriers/${courierId}/orders`);
+      if (res.ok) {
+        const orders = await res.json();
+        // Фильтруем только завершенные заказы
+        const completed = orders.filter((o: Order) => o.status === 'delivered');
+        setOrderHistory(completed);
+        setHistoryModalVisible(true);
+      }
+    } catch (err) {
+      console.error('Ошибка загрузки истории заказов:', err);
+      Alert.alert('Ошибка', 'Не удалось загрузить историю заказов');
+    }
   };
 
   return (
@@ -398,7 +423,12 @@ export default function CourierScreen() {
 
           <Text style={styles.menuTitle}>Меню</Text>
           <ScrollView>
-            <TouchableOpacity style={styles.menuItem}>
+            <TouchableOpacity 
+              style={styles.menuItem}
+              onPress={() => {
+                setSidePanelOpen(false);
+                loadOrderHistory();
+              }}>
               <Ionicons name="time-outline" size={24} color="#f2f2f2" />
               <Text style={styles.menuText}>История заказов</Text>
             </TouchableOpacity>
@@ -499,6 +529,47 @@ export default function CourierScreen() {
             </TouchableOpacity>
           </View>
         </Animated.View>
+      )}
+
+      {/* Модальное окно истории заказов */}
+      {historyModalVisible && (
+        <View style={styles.historyModal}>
+          <View style={styles.historyModalContent}>
+            <View style={styles.historyModalHeader}>
+              <Text style={styles.historyModalTitle}>История заказов</Text>
+              <TouchableOpacity
+                onPress={() => setHistoryModalVisible(false)}
+                style={styles.closeButton}>
+                <Ionicons name="close" size={24} color="#fff" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.historyList}>
+              {orderHistory.length === 0 ? (
+                <Text style={styles.emptyHistoryText}>Нет завершённых заказов</Text>
+              ) : (
+                orderHistory.map((order) => (
+                  <View key={order.id} style={styles.historyItem}>
+                    <Text style={styles.historyItemTitle}>Заказ #{order.id}</Text>
+                    <Text style={styles.historyItemText}>
+                      <Text style={styles.historyItemLabel}>Адрес:</Text> {order.address}
+                    </Text>
+                    <Text style={styles.historyItemText}>
+                      <Text style={styles.historyItemLabel}>Получатель:</Text> {order.recipient_name}
+                    </Text>
+                    {order.comment && (
+                      <Text style={styles.historyItemText}>
+                        <Text style={styles.historyItemLabel}>Комментарий:</Text> {order.comment}
+                      </Text>
+                    )}
+                    <Text style={styles.historyItemStatus}>
+                      Статус: {order.status}
+                    </Text>
+                  </View>
+                ))
+              )}
+            </ScrollView>
+          </View>
+        </View>
       )}
     </View>
   );
@@ -731,5 +802,84 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  historyModal: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10000,
+  },
+  historyModalContent: {
+    width: '90%',
+    maxWidth: 400,
+    maxHeight: '80%',
+    backgroundColor: '#1e293b',
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  historyModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingBottom: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  historyModalTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  closeButton: {
+    padding: 5,
+  },
+  historyList: {
+    maxHeight: '70%',
+  },
+  emptyHistoryText: {
+    color: '#94a3b8',
+    textAlign: 'center',
+    padding: 20,
+    fontSize: 16,
+  },
+  historyItem: {
+    backgroundColor: 'rgba(30, 41, 59, 0.5)',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  historyItemTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#fff',
+    marginBottom: 10,
+  },
+  historyItemText: {
+    fontSize: 14,
+    color: '#e4e4e7',
+    marginBottom: 6,
+    lineHeight: 20,
+  },
+  historyItemLabel: {
+    fontWeight: '600',
+    color: '#fff',
+  },
+  historyItemStatus: {
+    fontSize: 12,
+    color: '#10b981',
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.1)',
   },
 });

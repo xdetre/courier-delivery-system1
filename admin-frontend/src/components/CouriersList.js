@@ -1,7 +1,7 @@
 import React from 'react';
 import './CouriersList.css';
 
-function CouriersList({ couriers, onRefresh }) {
+function CouriersList({ couriers, onRefresh, onCourierClick, selectedCourierId }) {
   return (
     <div className="couriers">
       <h3>
@@ -19,7 +19,8 @@ function CouriersList({ couriers, onRefresh }) {
               key={courier.id}
               className={`courier-item ${
                 courier.status === 'avail' ? 'active' : 'inactive'
-              }`}
+              } ${selectedCourierId === courier.id ? 'selected' : ''}`}
+              onClick={() => onCourierClick(courier.id)}
             >
               {courier.name} ({courier.status})
             </div>
@@ -31,5 +32,6 @@ function CouriersList({ couriers, onRefresh }) {
 }
 
 export default CouriersList;
+
 
 

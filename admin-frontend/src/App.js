@@ -11,6 +11,8 @@ function App() {
   const [couriers, setCouriers] = useState([]);
   const [courierPositions, setCourierPositions] = useState([]);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [selectedCourierId, setSelectedCourierId] = useState(null);
+  const [courierOrders, setCourierOrders] = useState([]);
 
   // Загрузка списка курьеров
   const loadCouriers = async () => {
@@ -51,11 +53,31 @@ function App() {
     setRefreshKey(prev => prev + 1);
   };
 
+  // Загрузка заказов выбранного курьера
+  const loadCourierOrders = async (courierId) => {
+    try {
+      const response = await fetch(`${API_BASE}/couriers/${courierId}/orders`);
+      const data = await response.json();
+      setCourierOrders(data);
+    } catch (error) {
+      console.error('Ошибка загрузки заказов курьера:', error);
+      setCourierOrders([]);
+    }
+  };
+
+  // Обработчик выбора курьера
+  const handleCourierClick = (courierId) => {
+    setSelectedCourierId(courierId);
+    loadCourierOrders(courierId);
+  };
+
   return (
     <div className="container">
       <CouriersList 
         couriers={couriers} 
         onRefresh={handleRefresh}
+        onCourierClick={handleCourierClick}
+        selectedCourierId={selectedCourierId}
       />
       <MapView 
         courierPositions={courierPositions}
@@ -63,7 +85,11 @@ function App() {
         key={refreshKey}
       />
       <Menu />
-      <History />
+      <History 
+        orders={courierOrders}
+        selectedCourierId={selectedCourierId}
+        couriers={couriers}
+      />
     </div>
   );
 }
