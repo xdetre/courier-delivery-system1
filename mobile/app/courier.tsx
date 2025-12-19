@@ -10,7 +10,7 @@ import {
   Animated,
   PanResponder,
 } from 'react-native';
-import MapView, { Marker, Polyline } from 'react-native-maps';
+import MapView, { Marker, Polyline, Circle, PROVIDER_DEFAULT } from 'react-native-maps';
 import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
@@ -344,21 +344,45 @@ export default function CourierScreen() {
       <MapView
         ref={mapRef}
         style={styles.map}
+        provider={PROVIDER_DEFAULT}
+        customMapStyle={[]}
         initialRegion={{
           latitude: 42.98306,
           longitude: 47.50472,
           latitudeDelta: 0.01,
           longitudeDelta: 0.01,
-        }}>
-        {/* Маркер курьера */}
+        }}
+        mapType="standard">
+        {/* Текущая позиция курьера - кастомный компонент */}
         {location && (
-          <Marker
-            coordinate={{
-              latitude: location.coords.latitude,
-              longitude: location.coords.longitude,
-            }}
-            title="Вы здесь"
-          />
+          <>
+            {/* Круг точности геолокации */}
+            <Circle
+              center={{
+                latitude: location.coords.latitude,
+                longitude: location.coords.longitude,
+              }}
+              radius={location.coords.accuracy || 15}
+              fillColor="rgba(0, 123, 255, 0.15)"
+              strokeColor="rgba(0, 123, 255, 0.3)"
+              strokeWidth={1}
+            />
+            {/* Синий кружок с точкой (как в нативных картах) */}
+            <Marker
+              coordinate={{
+                latitude: location.coords.latitude,
+                longitude: location.coords.longitude,
+              }}
+              anchor={{ x: 0.5, y: 0.5 }}
+              flat={false}>
+              <View style={styles.userLocationContainer}>
+                <View style={styles.userLocationPulse} />
+                <View style={styles.userLocationDot}>
+                  <View style={styles.userLocationInnerDot} />
+                </View>
+              </View>
+            </Marker>
+          </>
         )}
 
         {/* Маркер заказа */}
@@ -881,5 +905,41 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  userLocationContainer: {
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  userLocationPulse: {
+    position: 'absolute',
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0, 123, 255, 0.3)',
+    borderWidth: 2,
+    borderColor: 'rgba(0, 123, 255, 0.5)',
+  },
+  userLocationDot: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#fff',
+    borderWidth: 3,
+    borderColor: '#007BFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  userLocationInnerDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#007BFF',
   },
 });
